@@ -1,0 +1,12 @@
+# Build configuration
+TARGETOS ?= linux
+TARGETARCH ?= arm64
+CGO_ENABLED ?= 0
+
+# Validate environment variables
+ifeq ($(TARGETOS),)
+$(error TARGETOS is not set)
+endif
+ifeq ($(TARGETARCH),)
+$(error TARGETARCH is not set)
+endif
