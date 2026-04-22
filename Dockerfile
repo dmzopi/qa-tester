@@ -1,16 +1,14 @@
-FROM --platform=$BUILDPLATFORM quay.io/projectquay/golang AS builder
+FROM --platform=linux/$TARGETARCH quay.io/projectquay/golang:1.26 AS builder
 
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
+ARG TARGETARCH
 
-RUN echo "Building Image on $BUILDPLATFORM for $TARGETPLATFORM"
+RUN echo "Building Image to run at $TARGETARCH"
 
 WORKDIR /app
 COPY . .
-RUN make build
+RUN make build TARGET=linux/$TARGETARCH
 
 FROM scratch
 WORKDIR /
-COPY --from=builder /go/src/app/app .
+COPY --from=builder /app .
 ENTRYPOINT [ "/app" ]
-

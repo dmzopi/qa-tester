@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Me launched on")
+	fmt.Println("Started on:")
 	fmt.Printf("Ver: %s\n", runtime.Version())
 	fmt.Printf("OS: %s\n", runtime.GOOS)
 	fmt.Printf("Architecture: %s\n", runtime.GOARCH)

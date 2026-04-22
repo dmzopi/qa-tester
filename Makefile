@@ -2,37 +2,45 @@
 APP=$(shell basename -s .git $(shell git remote get-url origin))
 VERSION=$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)
 REGISTRY=opidoc
-TARGETIMAGE=${REGISTRY}/${APP}:${VERSION}-${TARGETARCH}
 
-# Define mandatory target parameters as user input
-TARGETOS ?= darwin#linux windows 
-TARGETARCH ?= arm64#amd64
+# Define target parameters as user input, default darwin/amd64
+# Supported: https://go.dev/doc/install/source#environment
+# Popular:
+# TARGETOS = darwin linux windows 
+# TARGETARCH = arm64 amd64
+TARGET ?= darwin/amd64
+TARGETOS := $(firstword $(subst /, ,$(TARGET)))
+TARGETARCH := $(lastword $(subst /, ,$(TARGET)))
 
 # Validate environment variables
-ifeq ($(TARGETOS),)
-$(error TARGETOS is not set)
+ifeq (,$(findstring /,$(TARGET)))
+$(error TARGET must be in format os/arch. Got: $(TARGET))
 endif
 
-ifeq ($(TARGETARCH),)
-$(error TARGETARCH is not set)
+# Redefine binary name for Windows
+ifeq ($(TARGETOS),windows)
+APP := $(APP).exe
 endif
 
-# Detect the platform the make was launched
+# Assign target image name
+TARGETIMAGE=${REGISTRY}/${APP}:${VERSION}-${TARGETARCH}
+
+# Detect the platform/arch myself was launched
 ifeq ($(OS),Windows_NT)
-BUILDPLATFORM := windows
+BUILDOS := windows
+BUILDARCH := $(shell powershell -NoProfile -Command "[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture")
 else
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-BUILDPLATFORM := linux
+BUILDOS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+BUILDARCH := $(shell uname -m)
 endif
-ifeq ($(UNAME_S),Darwin)
-BUILDPLATFORM := darwin
-endif
+# Normalize arch
+ifeq ($(filter X64 x86_64 aarch64 ,$(BUILDARCH)),)
+else
+BUILDARCH := amd64
 endif
 
 print-env:
-	@echo "Building app binary on '$(BUILDPLATFORM)' for '$(TARGETOS)/$(TARGETARCH)'"
-
+	@echo "Building '$(APP)' binary on '$(BUILDOS)/$(BUILDARCH)' for '$(TARGETOS)/$(TARGETARCH)'"
 format:
 	@echo "Formatting Go code..."
 	gofmt -s -w ./
@@ -41,13 +49,15 @@ get:
 	go get
 
 build: print-env format get
-	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -v -o app -ldflags "-X qa-tester/cmd.appVersion=${VERSION}"
+	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -v -o ${APP} -ldflags "-X ${APP}/cmd.appVersion=${VERSION}"
 
 image:
-	docker build . -t ${REGISTRY}/${APP}:${VERSION}-${TARGETARCH}
+	docker build . -t ${TARGETIMAGE} \
+	--build-arg TARGETARCH=$(TARGETARCH)
 
 push:
-	docker push ${REGISTRY}/${APP}:${VERSION}-${TARGETARCH}
+	docker push ${TARGETIMAGE}
 
 clean:
-	rm -rf app
+	docker rmi ${TARGETIMAGE}
