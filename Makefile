@@ -52,7 +52,7 @@ get:
 	go get
 
 build: print-env format get
-	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+	go env -w CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} &&\
     go build -v -o ${APP} -ldflags "-X main.appVersion=${VERSION}"
 
 image:
